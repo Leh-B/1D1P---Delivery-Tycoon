@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Livraison Express : V0.19 Chameleon</title>
+    <style>
+        :root {
+            --primary: #2c3e50; --accent: #ff4757; --success: #2ed573;
+            --warning: #ffa502; --info: #1e90ff; --purple: #a55eea;
+            --dark: #121212; --panel: #1e1e1e; --border: #333; --xp: #ffd32a;
+            --mythic: #ff6b81; --legend: #7efff5; --mil: #57606f;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            background: var(--dark); margin: 0; padding: 0; color: #dfe4ea; 
+            padding-bottom: 80px; overflow-x: hidden;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        /* HEADER */
+        header { 
+            background: var(--panel); border: 1px solid var(--border); padding: 15px 25px; 
+            border-radius: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; 
+            align-items: center; position: relative; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .turbo-zone {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 250px; height: 6px; background: #333; border-radius: 6px 6px 0 0;
+            cursor: pointer; transition: 0.3s; z-index: 10;
+        }
+        .turbo-zone:hover { height: 35px; background: var(--accent); box-shadow: 0 0 20px var(--accent); }
+        .clock-display { font-size: 2.2em; font-family: 'Courier New', monospace; font-weight: bold; color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.2); }
+        
+        /* STATS */
+        .stats-bar {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px;
+            background: var(--panel); padding: 15px; border-radius: 12px; border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        .stat-item { text-align: center; }
+        .stat-label { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 5px; }
+        .stat-value { font-size: 1.1em; font-weight: bold; color: #fff; }
+
+        /* GRID LAYOUT */
+        .grid-container { display: grid; grid-template-columns: 2.2fr 1fr; gap: 25px; }
+        @media (max-width: 1000px) { .grid-container { grid-template-columns: 1fr; } }
+        
+        .section { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; position: relative; }
+        h2 { margin-top: 0; border-bottom: 1px solid var(--border); padding-bottom: 10px; font-size: 1.1em; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* MAP */
+        #map-container {
+            width: 100%; height: 500px; background: #000; border-radius: 8px; 
+            border: 2px solid #333; position: relative; overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8); transition: border-color 0.5s;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* CARDS */
+        .card {
+            background: #252525; border-left: 3px solid #555; padding: 12px; margin-bottom: 10px;
+            border-radius: 6px; display: flex; justify-content: space-between; align-items: center;
+            transition: 0.2s; position: relative; overflow: hidden;
+        }
+        .card-active { border-left-color: var(--success); background: #1b261b; }
+
+        /* BUTTONS */
+        button { cursor: pointer; border: none; border-radius: 6px; padding: 8px 12px; font-weight: bold; transition: 0.2s; color: white; font-size: 0.9em; }
+        button:hover { filter: brightness(1.2); transform: translateY(-1px); }
+        
+        .btn-green { background: var(--success); color: #000; }
+        .btn-red { background: var(--accent); }
+        .btn-blue { background: var(--info); }
+        .btn-purple { background: var(--purple); }
+        .btn-xp { background: var(--xp); color: #000; }
+        .btn-info { background: var(--info); }
+        .settings-btn { background: #444; color: #fff; font-size: 1.2em; padding: 5px 10px; }
+
+        .btn-fancy { 
+            width: 100%; display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; margin-top: 10px; border-radius: 8px; text-align: left;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-fancy.xp { background: linear-gradient(45deg, #e1b12c, #cd6133); color: #dfe4ea; }
+        .btn-fancy.shop { background: linear-gradient(45deg, #27ae60, #16a085); }
+        .btn-fancy.hire { background: linear-gradient(45deg, #2980b9, #8e44ad); }
+        .btn-fancy.info { background: linear-gradient(45deg, #1e90ff, #3498db); }
+        .btn-fancy .icon { font-size: 1.5em; opacity: 0.8; }
+
+        /* TABS & GRID ITEMS */
+        .tabs-wrapper { margin-top: 10px; }
+        .tabs-header { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 5px; border-bottom: 1px solid #444; margin-bottom: 15px; }
+        .tab-btn {
+            background: #2a2a2a; border: none; color: #888; padding: 8px 15px; 
+            border-radius: 8px 8px 0 0; cursor: pointer; font-weight: bold; transition: 0.2s; white-space: nowrap;
+        }
+        .tab-btn.active { background: var(--info); color: white; }
+        
+        .mission-grid-item {
+            background: #252525; padding: 10px; border-radius: 6px; border: 1px solid #333; margin-bottom: 10px;
+            display: flex; flex-direction: column; gap: 5px; cursor: pointer; transition: 0.2s;
+        }
+        .mission-grid-item:hover { border-color: var(--info); transform: translateY(-2px); }
+
+        .badge { font-size: 0.7em; background: #333; padding: 2px 6px; border-radius: 4px; border: 1px solid #444; margin-right: 5px; }
+        .badge-cap { color: var(--info); border-color: var(--info); }
+        .badge-time { color: var(--warning); border-color: var(--warning); }
+
+        /* MODALS */
+        .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+        .modal-content { background: #1e1e1e; padding: 25px; border-radius: 16px; width: 900px; max-width: 95%; border: 1px solid #444; max-height: 90vh; overflow-y: auto; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; margin-top: 20px; }
+        .shop-item { background: #2a2a2a; padding: 15px; border-radius: 10px; border: 1px solid #333; text-align: center; cursor: pointer; transition: 0.2s; position: relative; overflow: hidden; }
+        .shop-item:hover { border-color: var(--accent); background: #333; transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .shop-item.mythic-item { border: 1px solid var(--mythic); background: rgba(255, 107, 129, 0.1); }
+        .shop-item.legend-item { border: 1px solid var(--legend); background: rgba(126, 255, 245, 0.1); }
+        .tag-price { position: absolute; top: 10px; right: 10px; background: var(--success); color: #000; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+        .tag-owned { background: #555; color: #aaa; }
+
+        /* STYLE PREVIEW CARDS */
+        .style-card {
+            padding: 15px; border-radius: 8px; border: 2px solid #444; cursor: pointer; text-align: center; transition: 0.2s;
+        }
+        .style-card:hover { transform: scale(1.05); }
+        .style-card.active-style { border-color: var(--success); box-shadow: 0 0 15px rgba(46, 213, 115, 0.3); }
+
+        /* LOGS */
+        .log-entry { background: #2a2a2a; border-left: 5px solid var(--info); padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+        .log-version { font-size: 1.2em; font-weight: bold; color: var(--legend); margin-bottom: 5px; }
+        
+        /* TOASTS */
+        #toast-area { position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { background: #252525; border-left: 4px solid var(--info); color: white; padding: 15px 20px; border-radius: 4px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); animation: slideIn 0.3s ease; display:flex; align-items:center; gap:10px; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* PROGRESS BARS */
+        .progress-bg { background: #333; height: 6px; width: 100%; border-radius: 3px; overflow: hidden; margin-top: 5px; }
+        .progress-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.2s linear; }
+
+    </style>
+</head>
+<body>
+
+    <div class="modal" id="modal-start" style="display: flex;">
+        <div class="modal-content" style="width: 500px; text-align: center;">
+            <h1 style="color:var(--info); margin-bottom:10px;">⚡ v 0.19 Chameleon</h1>
+            <p style="color:#aaa; margin-bottom:30px;">Nouveau moteur graphique & Thèmes visuels.</p>
+            <button class="btn-fancy shop" onclick="startGame()" style="text-align:center; display:block; justify-content:center;">🏙️ Lancer la simulation</button>
+            <br>
+            <small style="color:#555; cursor:pointer" onclick="hardReset()">⚠️ Reset Sauvegarde</small>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <h1 style="margin:0">📦 Le Transporteur <span style="font-size:0.5em; background:var(--legend); color:#000; padding:2px 6px; border-radius:4px; vertical-align:middle;">V.19</span></h1>
+                <button class="settings-btn" onclick="openSettingsModal()" title="Options d'affichage">🔧</button>
+            </div>
+            <div class="clock-display" id="clock">08:00</div>
+            <div class="turbo-zone" id="turbo-zone"></div>
+            <button class="btn-red" onclick="hardReset()" style="font-size:0.7em;">RESET</button>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat-item"><span class="stat-label">Trésorerie</span><span class="stat-value" id="money">0 €</span></div>
+            <div class="stat-item"><span class="stat-label">Réputation</span><span class="stat-value text-green" id="reputation">0</span></div>
+            <div class="stat-item"><span class="stat-label">Bonus Rep</span><span class="stat-value" style="color:var(--xp)" id="rep-bonus">+0%</span></div>
+            <div class="stat-item"><span class="stat-label">Flotte</span><span class="stat-value"><span id="vehicles-count">0</span>/<span id="max-vehicles">5</span></span></div>
+            <div class="stat-item"><span class="stat-label">Contrats</span><span class="stat-value"><span id="daily-missions">0</span></span></div>
+        </div>
+
+        <div class="grid-container">
+            <div class="left-col">
+                <div class="section">
+                    <h2>📡 Radar Satellite <small id="fuel-price" style="font-size:0.7em; color:#888">⛽ -- €</small></h2>
+                    <div id="map-container">
+                        <canvas id="game-canvas" width="900" height="500"></canvas>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h2>📋 Appels d'Offres <small style="font-size:0.6em; color:#888">Maj: 45min</small></h2>
+                    <div id="active-missions-container" style="margin-bottom:20px;">
+                        <h4 style="margin-top:0; color:#888; border-bottom:1px dashed #444;">En cours de livraison</h4>
+                        <div id="active-missions-list"></div>
+                    </div>
+                    <div>
+                        <h4 style="margin-top:0; color:#888; border-bottom:1px dashed #444;">En attente (Trier par Capacité)</h4>
+                        <div class="tabs-wrapper">
+                            <div id="tabs-header" class="tabs-header"></div>
+                            <div id="tabs-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-col">
+                <div class="section">
+                    <h2>⚙️ Gestion & RH</h2>
+                    <button class="btn-fancy xp" onclick="openSkillsModal()"><span>🎓 Compétences</span><span class="icon">⚡</span></button>
+                    <button class="btn-fancy shop" onclick="openModal('modal-shop')"><span>🚗 Concessionnaire</span><span class="icon">🛒</span></button>
+                    <button class="btn-fancy hire" onclick="openHireModal()"><span>➕ Recruter Personnel</span><span class="icon">👤</span></button>
+                    <button class="btn-fancy info" onclick="openLogModal()"><span>📰 Journal de Bord</span><span class="icon">📜</span></button>
+                </div>
+                <div class="section">
+                    <h2>👷 Équipe Active</h2>
+                    <div id="couriers-list"></div>
+                </div>
+                <div class="section">
+                    <h2>🔧 Garage <button class="btn-purple" style="font-size:0.6em; float:right" onclick="buyGarageSlot()">Agrandir (+1)</button></h2>
+                    <div id="garage-list"></div>
+                </div>
+                <div class="section" style="border-top: 4px solid var(--purple);">
+                    <h2 style="color:var(--purple)">🏦 Banque</h2>
+                    <div style="background:#2a2a2a; padding:10px; border-radius:6px; margin-bottom:10px; display:flex; justify-content:space-between;">
+                        <span>Dette Actuelle:</span>
+                        <span class="text-red" style="font-weight:bold" id="debt">0 €</span>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-purple" style="flex:1" onclick="bankAction('loan')">Emprunter 5k</button>
+                        <button style="flex:1; background:#444;" onclick="bankAction('repay')">Rembourser 1k</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-area"></div>
+
+    <div class="modal" id="modal-settings"><div class="modal-content" style="width:600px">
+        <h2>🔧 Options d'Affichage</h2>
+        <p>Choisissez le style visuel de votre carte :</p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+            <div class="style-card" onclick="setMapStyle('base')" id="style-base">
+                <div style="font-size:2em">⚪</div>
+                <strong>Standard</strong><br><small>Sobre & Efficace</small>
+            </div>
+            <div class="style-card" onclick="setMapStyle('neon')" id="style-neon">
+                <div style="font-size:2em">🟣</div>
+                <strong>Néon</strong><br><small>Flashy & Cyberpunk</small>
+            </div>
+            <div class="style-card" onclick="setMapStyle('radar')" id="style-radar">
+                <div style="font-size:2em">🟢</div>
+                <strong>Radar</strong><br><small>Tactique & Pro</small>
+            </div>
+            <div class="style-card" onclick="setMapStyle('data')" id="style-data">
+                <div style="font-size:2em">🔵</div>
+                <strong>Data Stream</strong><br><small>Vivant & Flux</small>
+            </div>
+        </div>
+        <br>
+        <button class="btn-fancy info" onclick="closeModal('modal-settings')">Valider</button>
+    </div></div>
+
+    <div class="modal" id="modal-shop"><div class="modal-content"><h2>🏢 Concessionnaire Elite</h2><div class="filter-bar"><button class="filter-btn active" onclick="filterShop('urban', this)">🏙️ Urbain</button><button class="filter-btn" onclick="filterShop('sport', this)">🏎️ Sport</button><button class="filter-btn" onclick="filterShop('suv', this)">🚙 SUV</button><button class="filter-btn" onclick="filterShop('heavy', this)">🚛 Lourd</button><button class="filter-btn" style="color:#aaa" onclick="filterShop('mil', this)">🪖 Militaire</button><button class="filter-btn" onclick="filterShop('air', this)">✈️ Aérien</button><button class="filter-btn" style="color:var(--mythic)" onclick="filterShop('mythic', this)">🦄 Mythique</button></div><div id="shop-grid" class="shop-grid"></div><button class="btn-fancy shop" onclick="closeModal('modal-shop')">Fermer</button></div></div>
+    <div class="modal" id="modal-hire"><div class="modal-content"><h2>👔 Cabinet de Recrutement</h2><div class="filter-bar"><button class="filter-btn active" onclick="filterHire('beginner', this)">Débutants</button><button class="filter-btn" onclick="filterHire('pro', this)">Pros</button><button class="filter-btn" onclick="filterHire('expert', this)">Experts</button><button class="filter-btn" onclick="filterHire('creature', this)">Créatures</button><button class="filter-btn" style="color:var(--legend)" onclick="filterHire('legend', this)">Légendes</button></div><div id="hire-grid" class="shop-grid"></div><button class="btn-fancy hire" onclick="closeModal('modal-hire')">Fermer</button></div></div>
+    <div class="modal" id="modal-skills"><div class="modal-content"><h2>🎓 Compétences & Manager</h2><div id="skills-grid" class="shop-grid"></div><button class="btn-fancy xp" onclick="closeModal('modal-skills')">Fermer</button></div></div>
+    <div class="modal" id="modal-assign"><div class="modal-content" style="width:400px"><h2>Attribuer Véhicule</h2><div id="assign-grid" class="shop-grid"></div><button class="btn-fancy shop" onclick="closeModal('modal-assign')">Fermer</button></div></div>
+    <div class="modal" id="modal-log"><div class="modal-content"><h2>📜 Journal de Bord</h2><div id="log-content" style="margin-top:20px;"></div><button class="btn-fancy info" onclick="closeModal('modal-log')">Fermer</button></div></div>
+
+    <script>
+        /* -------------------------------------------------------------------------- */
+        /* CONFIGURATION STATIQUE (IMMUTABLE)                                     */
+        /* -------------------------------------------------------------------------- */
+        const SAVE_KEY = "ELITE_V19";
+
+        // Catalogue de référence des véhicules.
+        // Chaque entrée définit les propriétés physiques (vitesse, capacité) et économiques.
+        // 'icon' est utilisé pour le rendu Canvas et DOM.
+        const VEHICLES = [
+            { id: 'skate', cat: 'urban', name: "Skate", price: 50, speed: 15, cap: 1, icon: '🛹', desc: "Ça roule." },
+            { id: 'trot', cat: 'urban', name: "Trottinette", price: 200, speed: 20, cap: 1, icon: '🛴', desc: "Électrique." },
+            { id: 'bike', cat: 'urban', name: "Vélo", price: 500, speed: 30, cap: 1, icon: '🚲', desc: "Écologique." },
+            { id: 'scoot', cat: 'urban', name: "Scooter", price: 2000, speed: 60, cap: 2, icon: '🛵', desc: "Standard." },
+            { id: 'twingo', cat: 'urban', name: "Citadine", price: 5000, speed: 70, cap: 4, icon: '🚗', desc: "Pratique." },
+            { id: 'taxi', cat: 'urban', name: "Taxi", price: 10000, speed: 75, cap: 3, icon: '🚕', desc: "Pro." },
+            { id: 'rollers', cat: 'urban', name: "Rollers", price: 100, speed: 40, cap: 1, icon: '🛼', desc: "Léger." },
+            { id: 'caddie', cat: 'urban', name: "Caddie", price: 300, speed: 10, cap: 5, icon: '🛒', desc: "Low-cost." },
+            { id: 'scoot_mob', cat: 'urban', name: "Scooter Mobilité", price: 400, speed: 20, cap: 1, icon: '🦼', desc: "Accessibilité." },
+            { id: 'kart', cat: 'sport', name: "Karting", price: 8000, speed: 85, cap: 1, icon: '🏎️', desc: "Fun." },
+            { id: 'rally', cat: 'sport', name: "Rallye", price: 15000, speed: 110, cap: 2, icon: '🚙💨', desc: "Drift." },
+            { id: 'muscle', cat: 'sport', name: "Muscle Car", price: 25000, speed: 130, cap: 2, icon: '🚘', desc: "V8." },
+            { id: 'hyper', cat: 'sport', name: "Hypercar", price: 60000, speed: 200, cap: 1, icon: '🏎️🔥', desc: "Fusée au sol." },
+            { id: 'comet', cat: 'sport', name: "Comète", price: 80000, speed: 250, cap: 1, icon: '💫', desc: "Ultra-rapide." },
+            { id: 'moto_race', cat: 'sport', name: "Moto Course", price: 30000, speed: 150, cap: 1, icon: '🏍️', desc: "Agile." },
+            { id: 'suv', cat: 'suv', name: "SUV Famille", price: 12000, speed: 75, cap: 6, icon: '🚙', desc: "Confort." },
+            { id: 'jeep', cat: 'suv', name: "4x4", price: 16000, speed: 65, cap: 4, icon: '🛻', desc: "Franchissement." },
+            { id: 'luxe_suv', cat: 'suv', name: "G-Wagon", price: 35000, speed: 90, cap: 5, icon: '🚐✨', desc: "Prestige." },
+            { id: 'elephant', cat: 'suv', name: "Éléphant", price: 50000, speed: 40, cap: 30, icon: '🐘', desc: "Tout-terrain lourd." },
+            { id: 'van', cat: 'heavy', name: "Van", price: 8000, speed: 55, cap: 8, icon: '🚐', desc: "Volume moyen." },
+            { id: 'truck', cat: 'heavy', name: "Semi", price: 30000, speed: 50, cap: 20, icon: '🚛', desc: "Gros volume." },
+            { id: 'bus', cat: 'heavy', name: "Bus", price: 40000, speed: 45, cap: 25, icon: '🚌', desc: "Transport commun." },
+            { id: 'cargo', cat: 'heavy', name: "Cargo", price: 150000, speed: 30, cap: 200, icon: '🚢', desc: "Colossal." },
+            { id: 'train', cat: 'heavy', name: "Train Vapeur", price: 70000, speed: 70, cap: 50, icon: '🚂', desc: "Sur rails." },
+            { id: 'humvee', cat: 'mil', name: "Humvee", price: 45000, speed: 70, cap: 6, icon: '🪖🚙', desc: "Blindé léger." },
+            { id: 'apc', cat: 'mil', name: "VAB", price: 65000, speed: 60, cap: 10, icon: '🧱', desc: "Transport de troupes." },
+            { id: 'tank', cat: 'mil', name: "Tank", price: 90000, speed: 40, cap: 4, icon: '💥', desc: "Force brute." },
+            { id: 'stealth', cat: 'mil', name: "Jet F-22", price: 150000, speed: 300, cap: 2, icon: '✈️🌑', fly: true, desc: "Invisible." },
+            { id: 'mil_heli', cat: 'mil', name: "Hélicoptère Militaire", price: 95000, speed: 180, cap: 12, icon: '🚁', fly: true, desc: "Transport armé." },
+            { id: 'drone', cat: 'air', name: "Drone", price: 25000, speed: 100, cap: 2, icon: '🚁', fly: true, desc: "Agile." },
+            { id: 'plane', cat: 'air', name: "Cessna", price: 50000, speed: 160, cap: 8, icon: '✈️', fly: true, desc: "Rapide." },
+            { id: 'rocket', cat: 'air', name: "Fusée", price: 100000, speed: 250, cap: 5, icon: '🚀', fly: true, desc: "Orbital." },
+            { id: 'ufo', cat: 'air', name: "OVNI", price: 500000, speed: 400, cap: 50, icon: '🛸', fly: true, desc: "Alien." },
+            { id: 'satellite', cat: 'air', name: "Satellite", price: 120000, speed: 500, cap: 1, icon: '🛰️', fly: true, desc: "Orbital." },
+            { id: 'balloon', cat: 'air', name: "Montgolfière", price: 15000, speed: 20, cap: 40, icon: '🎈', fly: true, desc: "Volume, mais lenteur." },
+            { id: 'eagle', cat: 'air', name: "Aigle Géant", price: 100000, speed: 150, cap: 5, icon: '🦅', fly: true, desc: "Biologique." },
+            { id: 'dragon', cat: 'mythic', name: "Dragon", price: 1000000, speed: 300, cap: 100, icon: '🐉', fly: true, desc: "Feu." },
+            { id: 'unicorn', cat: 'mythic', name: "Licorne", price: 800000, speed: 200, cap: 10, icon: '🦄', fly: true, desc: "Magie." },
+            { id: 'carpet', cat: 'mythic', name: "Tapis", price: 500000, speed: 180, cap: 4, icon: '🧞‍♂️', fly: true, desc: "Rêve bleu." },
+            { id: 'dolphin', cat: 'mythic', name: "Dauphin", price: 400000, speed: 100, cap: 8, icon: '🐬', fly: true, desc: "Aquatique/Amphibie." },
+            { id: 'bear', cat: 'mythic', name: "Ours Géant", price: 300000, speed: 80, cap: 20, icon: '🐻', desc: "Force brute." },
+            { id: 'ghost', cat: 'mythic', name: "Fantôme", price: 999999, speed: 999, cap: 1, icon: '👻', fly: true, desc: "Téléportation (très rare)." }
+        ];
+
+        // Catalogue de référence du personnel.
+        // Définit les multiplicateurs de vitesse (spd) et de revenu (earn).
+        const RECRUITS = [
+            { id: 'intern', cat: 'beginner', name: "Stagiaire", price: 200, spd: 0.8, earn: 1.0, icon: '👶', desc: "Apprend vite." },
+            { id: 'student', cat: 'beginner', name: "Étudiant", price: 300, spd: 0.9, earn: 1.0, icon: '🎒', desc: "Job d'été." },
+            { id: 'sleeper', cat: 'beginner', name: "Le Dormeur", price: 100, spd: 0.6, earn: 0.9, icon: '😴', desc: "Peut rater des missions." },
+            { id: 'gamer', cat: 'beginner', name: "Gamer", price: 400, spd: 0.9, earn: 1.0, icon: '🎮', desc: "Bonus de nuit." },
+            { id: 'cook', cat: 'beginner', name: "Cuisinier", price: 500, spd: 1.0, earn: 1.1, icon: '🧑‍🍳', desc: "Spécialiste de la nourriture." },
+            { id: 'pro', cat: 'pro', name: "Livreur Pro", price: 1500, spd: 1.0, earn: 1.0, icon: '👷', desc: "Standard." },
+            { id: 'cop', cat: 'pro', name: "Policier", price: 2000, spd: 1.1, earn: 1.0, icon: '👮', desc: "Respecté." },
+            { id: 'kungfu', cat: 'pro', name: "M. Kung-Fu", price: 3500, spd: 1.3, earn: 1.0, icon: '🥋', desc: "Agile, véhicules légers." },
+            { id: 'reporter', cat: 'pro', name: "Reporter", price: 4000, spd: 1.1, earn: 1.2, icon: '🎙️', desc: "Atteint les zones chaudes." },
+            { id: 'coder', cat: 'pro', name: "Codeur", price: 5000, spd: 1.0, earn: 1.3, icon: '👨‍💻', desc: "Optimisation des circuits." },
+            { id: 'racer', cat: 'expert', name: "Pilote F1", price: 8000, spd: 1.8, earn: 1.0, icon: '🏎️👤', desc: "Adrénaline." },
+            { id: 'general', cat: 'expert', name: "Général", price: 10000, spd: 1.0, earn: 1.5, icon: '🎖️', desc: "Stratège." },
+            { id: 'bodyguard', cat: 'expert', name: "Garde", price: 9000, spd: 1.2, earn: 1.2, icon: '🕶️', desc: "Sûr." },
+            { id: 'robot', cat: 'creature', name: "Robot", price: 10000, spd: 1.2, earn: 1.2, icon: '🤖', desc: "Incassable." },
+            { id: 'alien', cat: 'creature', name: "Alien", price: 12000, spd: 1.8, earn: 1.0, icon: '👽', desc: "Techno." },
+            { id: 'gorilla', cat: 'creature', name: "Gorille", price: 15000, spd: 1.0, earn: 1.1, icon: '🦍', desc: "Force (Bonus Lourds)." },
+            { id: 'vampire', cat: 'creature', name: "Vampire", price: 18000, spd: 1.5, earn: 1.3, icon: '🧛', desc: "Travail de nuit." },
+            { id: 'wizard', cat: 'creature', name: "Sorcier", price: 20000, spd: 1.0, earn: 1.8, icon: '🧙‍♂️', desc: "Magie logistique." },
+            { id: 'dino', cat: 'creature', name: "Dinosaure", price: 22000, spd: 0.9, earn: 1.0, icon: '🦖', desc: "Évite les accidents." },
+            { id: 'santa', cat: 'legend', name: "Père Noël", price: 50000, spd: 1.5, earn: 2.0, icon: '🎅', desc: "Ho Ho Ho!" },
+            { id: 'hacker', cat: 'legend', name: "Hacker", price: 70000, spd: 1.0, earn: 3.0, icon: '💻', desc: "Détourne les fonds." },
+            { id: 'hero', cat: 'legend', name: "Super-Héros", price: 100000, spd: 2.0, earn: 1.5, icon: '🦸', desc: "Le meilleur." },
+            { id: 'monarch', cat: 'legend', name: "Monarque", price: 85000, spd: 1.0, earn: 2.5, icon: '👑', desc: "Exige le luxe." },
+            { id: 'time_traveler', cat: 'legend', name: "V. Temporel", price: 90000, spd: 1.2, earn: 2.0, icon: '⏳', desc: "Annule 1 échec/jour." }
+        ];
+
+        // Catalogue des améliorations passives.
+        const SKILLS_CATALOG = [
+            { id: 'auto_manager', name: "Manager IA", price: 25000, icon: '🤖', desc: "Assigne AUTOMATIQUEMENT les missions aux livreurs libres." },
+            { id: 'mechanic', name: "Mécano Chef", price: 5000, icon: '🔧', desc: "Maintenance gratuite des véhicules." },
+            { id: 'ad_agency', name: "Publicitaire", price: 8000, icon: '📺', desc: "+20% de Réputation." },
+            { id: 'fuel_eco', name: "Eco-Conduite", price: 10000, icon: '🍃', desc: "Coûts journaliers réduits de 30%." },
+            { id: 'speed_logistics', name: "Nitro-Logistique", price: 15000, icon: '🚀', desc: "Tous les véhicules vont 10% plus vite." },
+            { id: 'promoter', name: "Promoteur", price: 12000, icon: '📈', desc: "+50% fréquence missions." },
+            { id: 'negotiator', name: "Négociateur", price: 20000, icon: '🤝', desc: "Gains +15%." }
+        ];
+
+        // Historique des patchs pour le changelog in-game.
+        const VERSION_LOG = [
+            {
+                version: "V0.19: Chameleon",
+                date: "Maintenant",
+                notes: [
+                    "🎨 **Moteur Graphique :** Ajout du menu 'Options' (Clé à molette) pour changer le style de la carte.",
+                    "✨ **4 Styles :** Base, Néon (Cyberpunk), Radar (Militaire) et Data Stream (Matrix).",
+                    "💾 **Persistance :** Votre choix de style est sauvegardé."
+                ]
+            },
+            {
+                version: "V0.18: Tabs Edition",
+                date: "Hier",
+                notes: [ "🗂️ Onglets de Missions.", "✅ Tri Intelligent." ]
+            }
+        ];
+
+        // Dictionnaires pour la génération procédurale des noms de mission.
+        const M_VERBS = ["Livraison", "Transport", "Récupération", "Envoi", "Sauvetage", "Transfert", "Expédition", "Acheminement", "Convoyage", "Distribution", "Affrètement", "Relocalisation", "Collecte", "Dépôt", "Saisine", "Remise", "Évacuation", "Rapatriement", "Approvisionnement", "Portage", "Aiguillage", "Manutention", "Réception", "Logistique", "Transit", "Restitution", "Cession"];
+        const M_OBJECTS = ["de Pizzas 🍕", "de Documents 📄", "d'Organes 🫀", "de Meubles 🛋️", "de Sushis 🍣", "de Briques 🧱", "de Billets 💸", "de Fleurs 🌹", "de Vaccins 💉", "d'Uranium ☢️", "de Chatons 🐱", "de Colis 📦", "de Médicaments 💊", "d'Échantillons 🔬", "de Pièces Détachées 🔩", "de Marchandises 🛒", "de Courrier ✉️", "d'Animaux 🐾", "d'Antiquités 🏺", "de Devise 💶", "de Conteneurs 🚢", "d'Outils 🛠️", "de Matières Premières 🪨", "de Données 💾", "de Ravitaillement 🥫", "de Liquides 💧", "d'Œuvres d'Art 🖼️", "de Passagers 👤", "d'Armes 🔫", "de Matériel Sportif ⚽", "de Prothèses 🦾", "d'Hydrocarbures ⛽"];
+        const M_CONTEXT = ["Urgent", "Fragile", "VIP", "Secret", "Nocturne", "Express", "Discret", "Prioritaire", "Sécurisé", "Délicat", "Confidentiel", "Souterrain", "Sur-Mesure", "Anonyme", "Haute-Valeur", "Réglementé", "Premium", "Ultra-Rapide", "Quotidien", "Diplomatique", "Climatisé", "Spécialisé", "Périssable", "Sans-Contact", "En-Masse", "Temporisé", "Brouillé"];
+
+        /* -------------------------------------------------------------------------- */
+        /* ÉTAT GLOBAL (MUTABLE)                                                   */
+        /* -------------------------------------------------------------------------- */
+        // Contient l'intégralité des données de la session courante.
+        // Objet sérialisé en JSON lors de la sauvegarde.
+        let state = {
+            money: 3000, debt: 0, reputation: 0,
+            time: 480, day: 1, speed: 1,
+            couriers: [], vehicles: [], missions: [], 
+            skills: {}, 
+            maxVehicles: 5,
+            stats: { missionsToday: 0 },
+            cheatUsed: false,
+            activeTab: 1,
+            mapStyle: 'base' // default
+        };
+
+        // Filtres d'affichage temporaires (non sauvegardés).
+        let currentShopFilter = 'urban';
+        let currentHireFilter = 'beginner';
+
+        /* -------------------------------------------------------------------------- */
+        /* MOTEUR GRAPHIQUE (CANVAS RENDERER)                                      */
+        /* -------------------------------------------------------------------------- */
+        const GFX = {
+            canvas: null, ctx: null, width: 0, height: 0, 
+            nodes: [], hubs: [], hq: {x:0, y:0}, // Graphe de navigation
+            particles: [], radarAngle: 0,
+            
+            // Initialisation du contexte graphique.
+            init: function() {
+                this.canvas = document.getElementById('game-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+                
+                // Pré-allocation des particules pour le mode 'Data'.
+                for(let i=0; i<50; i++) this.particles.push({ x:0, y:0, tx:0, ty:0, p:0, active:false });
+            },
+            
+            // Gestion du responsive : redimensionne le canvas interne pour correspondre au CSS.
+            resize: function() {
+                if(!this.canvas) return;
+                const rect = this.canvas.getBoundingClientRect();
+                this.canvas.width = rect.width; this.canvas.height = rect.height;
+                this.width = rect.width; this.height = rect.height;
+                this.hq = { x: this.width/2, y: this.height/2 };
+                if(this.nodes.length === 0) this.generateCity();
+            },
+            
+            // Génération procédurale de la topologie de la ville.
+            // Crée un système en étoile : QG -> Hubs -> Nodes (boutiques/clients).
+            generateCity: function() {
+                this.nodes = []; this.hubs = [];
+                const hubCount = 6;
+                // Création des Hubs principaux autour du QG.
+                for(let i=0; i<hubCount; i++) {
+                    const angle = (i / hubCount) * Math.PI * 2;
+                    const dist = this.height * 0.35;
+                    this.hubs.push({ x: this.hq.x + Math.cos(angle)*dist, y: this.hq.y + Math.sin(angle)*dist });
+                }
+                // Dispersion aléatoire des nodes et rattachement au Hub le plus proche.
+                for(let i=0; i<50; i++) {
+                    const x = Math.random() * (this.width - 40) + 20;
+                    const y = Math.random() * (this.height - 40) + 20;
+                    let nearest = this.hubs[0], minD = 99999;
+                    this.hubs.forEach(h => { const d = Math.hypot(x-h.x, y-h.y); if(d < minD) { minD=d; nearest=h; } });
+                    this.nodes.push({ x: x, y: y, type: Math.random()>0.4?'client':'shop', hub: nearest });
+                }
+            },
+            
+            // Calculs d'animation frame-par-frame.
+            update: function() {
+                // Rotation du radar.
+                this.radarAngle += 0.05;
+                
+                // Physique des particules (Mode Data).
+                if(state.mapStyle === 'data') {
+                    this.particles.forEach(p => {
+                        if(!p.active) {
+                            // Respawn aléatoire d'une particule entre deux hubs.
+                            if(Math.random() > 0.9) {
+                                const start = this.hubs[Math.floor(Math.random()*this.hubs.length)];
+                                const end = this.hubs[Math.floor(Math.random()*this.hubs.length)];
+                                if(start !== end) {
+                                    p.active = true; p.x = start.x; p.y = start.y; p.tx = end.x; p.ty = end.y; p.p = 0;
+                                }
+                            }
+                        } else {
+                            // Interpolation (Lerp) de la position.
+                            p.p += 0.02;
+                            p.x = p.x + (p.tx - p.x) * 0.02;
+                            p.y = p.y + (p.ty - p.y) * 0.02;
+                            if(p.p >= 1) p.active = false;
+                        }
+                    });
+                }
+            },
+
+            // Pipeline de rendu principal.
+            draw: function() {
+                if(!this.ctx) return;
+                this.update();
+                const ctx = this.ctx;
+                
+                // Définition des palettes de couleurs selon le thème.
+                const themes = {
+                    'base': { bg: '#000', road: '#222', hub: '#555', node: '#e74c3c', shop: '#3498db', shadow: 0 },
+                    'neon': { bg: '#0a0a12', road: '#d63031', hub: '#a29bfe', node: '#ff7675', shop: '#74b9ff', shadow: 15, glow: 'cyan' },
+                    'radar': { bg: '#001a00', road: '#003300', hub: '#004400', node: '#00ff00', shop: '#00cc00', shadow: 0 },
+                    'data': { bg: '#111', road: '#333', hub: '#444', node: '#eee', shop: '#ccc', shadow: 0 }
+                };
+                const t = themes[state.mapStyle] || themes['base'];
+
+                // 1. Fond
+                ctx.fillStyle = t.bg;
+                ctx.fillRect(0,0,this.width, this.height);
+
+                // 2. Effet Radar (Gradient Conique)
+                if(state.mapStyle === 'radar') {
+                    const grad = ctx.createConicGradient(this.radarAngle, this.hq.x, this.hq.y);
+                    grad.addColorStop(0, 'rgba(0, 255, 0, 0)');
+                    grad.addColorStop(0.1, 'rgba(0, 255, 0, 0.3)');
+                    grad.addColorStop(1, 'rgba(0, 255, 0, 0)');
+                    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(this.hq.x, this.hq.y, this.width, 0, Math.PI*2); ctx.fill();
+                }
+
+                // 3. Réseau Routier (Lignes)
+                ctx.shadowBlur = t.shadow; ctx.shadowColor = t.glow || "transparent";
+                ctx.lineWidth = state.mapStyle === 'neon' ? 3 : 2;
+                ctx.strokeStyle = t.road;
+                
+                this.hubs.forEach(h => { ctx.beginPath(); ctx.moveTo(this.hq.x, this.hq.y); ctx.lineTo(h.x, h.y); ctx.stroke(); });
+                ctx.lineWidth = 1;
+                if(state.mapStyle === 'radar') ctx.strokeStyle = "#004400";
+                this.nodes.forEach(n => { ctx.beginPath(); ctx.moveTo(n.hub.x, n.hub.y); ctx.lineTo(n.x, n.y); ctx.stroke(); });
+                ctx.shadowBlur = 0;
+
+                // 4. Particules de données
+                if(state.mapStyle === 'data') {
+                    ctx.fillStyle = "#fff";
+                    this.particles.forEach(p => { if(p.active) ctx.fillRect(p.x, p.y, 2, 2); });
+                }
+
+                // 5. Noeuds (Villes/Commerces)
+                this.hubs.forEach(h => { ctx.fillStyle=t.hub; ctx.beginPath(); ctx.arc(h.x, h.y, 4, 0, Math.PI*2); ctx.fill(); });
+                this.nodes.forEach(n => { 
+                    ctx.fillStyle = n.type==='shop' ? t.shop : t.node; 
+                    ctx.beginPath(); 
+                    if(state.mapStyle === 'radar') ctx.fillRect(n.x-2, n.y-2, 4, 4); 
+                    else ctx.arc(n.x, n.y, 3, 0, Math.PI*2); 
+                    ctx.fill(); 
+                });
+                
+                // 6. QG (Centre)
+                ctx.fillStyle = state.mapStyle === 'radar' ? '#00ff00' : "#2ed573"; 
+                ctx.beginPath(); ctx.arc(this.hq.x, this.hq.y, 7, 0, Math.PI*2); ctx.fill();
+
+                // 7. Véhicules (Interpolation de position selon progression mission)
+                state.missions.forEach(m => {
+                    if(m.status === 'active' && m.targetNode) {
+                        const c = state.couriers.find(x => x.id === m.cId);
+                        const v = state.vehicles.find(x => x.id === c.vehicleId);
+                        if(!v) return;
+                        let vx, vy;
+                        const p = m.progress / 100;
+                        
+                        // Calcul vectoriel de la position actuelle.
+                        if(v.fly) {
+                            // Vol direct (Ligne droite)
+                            vx = this.hq.x + (m.targetNode.x - this.hq.x) * p;
+                            vy = this.hq.y + (m.targetNode.y - this.hq.y) * p;
+                        } else {
+                            // Trajet routier (QG -> Hub -> Node)
+                            const hub = m.targetNode.hub || this.hubs[0];
+                            const d1 = Math.hypot(hub.x - this.hq.x, hub.y - this.hq.y);
+                            const d2 = Math.hypot(m.targetNode.x - hub.x, m.targetNode.y - hub.y);
+                            const currentDist = p * (d1+d2);
+                            if(currentDist < d1) {
+                                const subP = currentDist / d1;
+                                vx = this.hq.x + (hub.x - this.hq.x) * subP;
+                                vy = this.hq.y + (hub.y - this.hq.y) * subP;
+                            } else {
+                                const subP = (currentDist - d1) / d2;
+                                vx = hub.x + (m.targetNode.x - hub.x) * subP;
+                                vy = hub.y + (m.targetNode.y - hub.y) * subP;
+                            }
+                        }
+                        ctx.font = "16px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle";
+                        ctx.fillText(v.icon, vx, vy);
+                    }
+                });
+            }
+        };
+
+        /* -------------------------------------------------------------------------- */
+        /* LOGIQUE DE JEU (GAME LOOP)                                              */
+        /* -------------------------------------------------------------------------- */
+        
+        // Initialisation et démarrage de la boucle.
+        function startGame() {
+            document.getElementById('modal-start').style.display = 'none';
+            GFX.init(); GFX.generateCity();
+            loadGame();
+            // Création des assets de départ si nouvelle partie.
+            if(state.couriers.length === 0) {
+                state.money = 3000;
+                state.couriers.push({ id: Date.now(), name: "Le Patron", level: 1, xp: 0, busy: false, vehicleId: null, spd: 1.2, earn: 1.0 });
+                const bike = { ...VEHICLES.find(v=>v.id==='bike'), id: Date.now()+1, condition: 100, assignedTo: state.couriers[0].id };
+                state.vehicles.push(bike);
+                state.couriers[0].vehicleId = bike.id;
+            }
+            while(state.missions.length < 6) generateMission();
+            if (window.gameInterval) clearInterval(window.gameInterval);
+            window.gameInterval = setInterval(gameLoop, 100);
+            updateUI();
+        }
+
+        // Boucle principale (Tick).
+        function gameLoop() {
+            if(state.speed === 0) return;
+            
+            // Avancement du temps (Minutes).
+            state.time += 0.2 * state.speed;
+            
+            // Cycle journalier (1440 min = 24h).
+            if(state.time >= 1440) { state.time = 0; state.day++; state.stats.missionsToday = 0; payDailyCosts(); }
+            
+            // Génération périodique de missions (Intervalle variable selon compétences).
+            const checkTime = Math.floor(state.time);
+            const freq = state.skills.promoter ? 30 : 45; 
+            if(checkTime % freq === 0 && checkTime !== state.lastMissionCheck) { 
+                state.lastMissionCheck = checkTime; 
+                if(Math.random() > 0.2) generateMission(); 
+            }
+            
+            // Automation (Compétence Manager IA).
+            if(state.skills.auto_manager && checkTime % 2 === 0) { 
+                state.missions.forEach(m => {
+                    if(m.status === 'pending') {
+                        const worker = state.couriers.find(c => !c.busy && c.vehicleId && state.vehicles.find(v=>v.id===c.vehicleId).cap >= m.slots);
+                        if(worker) acceptMission(m.id, state.couriers.indexOf(worker));
+                    }
+                });
+            }
+            
+            // Physique des missions (Calcul de progression).
+            // Vitesse = (Base Véhicule * Multiplicateur Livreur) / Distance
+            state.missions.forEach(m => {
+                if(m.status === 'active') {
+                    const c = state.couriers.find(x => x.id === m.cId);
+                    const v = state.vehicles.find(x => x.id === c.vehicleId);
+                    if(c && v) {
+                        let spd = v.speed * (c.spd || 1.0);
+                        if(state.skills.mechanic) spd *= 1.1; 
+                        if(state.skills.speed_logistics) spd *= 1.1; 
+                        m.progress += (spd / m.distance) * 2.5 * state.speed;
+                        if(m.progress >= 100) completeMission(m);
+                    }
+                }
+            });
+            
+            GFX.draw();
+            updateClock();
+        }
+
+        // Générateur stochastique de missions.
+        function generateMission() {
+            if(!GFX.nodes.length) return;
+            if(state.missions.filter(m=>m.status==='pending').length > 25) return;
+            
+            // Construction du nom et des paramètres.
+            const verb = M_VERBS[Math.floor(Math.random() * M_VERBS.length)];
+            const obj = M_OBJECTS[Math.floor(Math.random() * M_OBJECTS.length)];
+            const ctx = Math.random() > 0.6 ? M_CONTEXT[Math.floor(Math.random() * M_CONTEXT.length)] : "";
+            const name = `${verb} ${ctx} ${obj}`;
+            const target = GFX.nodes[Math.floor(Math.random() * GFX.nodes.length)];
+            const dist = 500; // Distance abstraite standardisée
+            
+            // Pondération des capacités requises (Slot).
+            let capReq = 1; const r = Math.random();
+            if(r < 0.6) capReq = Math.floor(Math.random() * 2) + 1; 
+            else if(r < 0.9) capReq = Math.floor(Math.random() * 4) + 1; 
+            else capReq = Math.floor(Math.random() * 10) + 1; 
+            
+            const timeEst = Math.floor((dist / 30) * 4); 
+            let baseReward = 50 + (capReq * 20) + (Math.random() * 50);
+            
+            state.missions.push({ id: Date.now() + Math.random(), name: name, slots: capReq, reward: Math.floor(baseReward), timeEst: timeEst, status: 'pending', progress: 0, targetNode: target, distance: dist, cId: null });
+            updateUI();
+        }
+
+        // Résolution de mission réussie.
+        function completeMission(m) {
+            let gain = m.reward * (1 + (state.reputation / 100));
+            if(state.skills.negotiator) gain *= 1.15;
+            const c = state.couriers.find(x => x.id === m.cId);
+            if(c && c.earn) gain *= c.earn;
+            
+            state.money += gain;
+            state.reputation = parseFloat((state.reputation + (state.skills.ad_agency ? 1.2 : 1)).toFixed(1));
+            
+            // Leveling du livreur.
+            if(c) { c.busy = false; c.xp += 10; if(c.xp >= c.level*100) { c.level++; c.xp=0; }}
+            
+            state.missions = state.missions.filter(x => x.id !== m.id);
+            updateUI(); notify(`Mission terminée: +${Math.floor(gain)}€`, "success");
+        }
+
+        // Affectation d'un livreur à une mission.
+        function acceptMission(mId, cIndex) {
+            const m = state.missions.find(x => x.id === mId); const c = state.couriers[cIndex]; const v = state.vehicles.find(x => x.id === c.vehicleId);
+            if(!m || !c || !v) return; if(v.cap < m.slots) return notify("Véhicule trop petit !", "error"); if(c.busy) return notify("Déjà occupé !", "error");
+            m.status = 'active'; m.cId = c.id; c.busy = true; updateUI();
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* INTERFACE UTILISATEUR & DOM                                            */
+        /* -------------------------------------------------------------------------- */
+        
+        function openSettingsModal() {
+            document.querySelectorAll('.style-card').forEach(el => el.classList.remove('active-style'));
+            const active = document.getElementById('style-' + state.mapStyle);
+            if(active) active.classList.add('active-style');
+            document.getElementById('modal-settings').style.display = 'flex';
+        }
+
+        // Changement dynamique du thème CSS/Canvas.
+        function setMapStyle(style) {
+            state.mapStyle = style;
+            document.querySelectorAll('.style-card').forEach(el => el.classList.remove('active-style'));
+            document.getElementById('style-' + style).classList.add('active-style');
+            const canvas = document.getElementById('map-container');
+            if(style === 'neon') canvas.style.borderColor = '#ff7675';
+            else if(style === 'radar') canvas.style.borderColor = '#00ff00';
+            else canvas.style.borderColor = '#333';
+        }
+
+        function setActiveTab(cap) { state.activeTab = cap; updateUI(); }
+
+        // Reconstruction complète du DOM (Approche Reactive simple).
+        function updateUI() {
+            document.getElementById('money').innerText = Math.floor(state.money) + " €";
+            document.getElementById('debt').innerText = Math.floor(state.debt) + " €";
+            document.getElementById('reputation').innerText = Math.floor(state.reputation);
+            document.getElementById('rep-bonus').innerText = "+" + Math.floor(state.reputation) + "%";
+            document.getElementById('vehicles-count').innerText = state.vehicles.length;
+            document.getElementById('max-vehicles').innerText = state.maxVehicles;
+            document.getElementById('daily-missions').innerText = state.missions.filter(m => m.status === 'active').length;
+
+            // Rendu des missions actives (Barres de progression).
+            const activeMissions = state.missions.filter(m => m.status === 'active');
+            document.getElementById('active-missions-list').innerHTML = activeMissions.length ? activeMissions.map(m => {
+                const c = state.couriers.find(x => x.id === m.cId);
+                return `<div class="card card-active"><div><strong>${m.name}</strong><br><small>Livreur: ${c?c.name:'?'}</small></div><div style="width:100px"><div class="progress-bg"><div class="progress-fill" style="width:${m.progress}%"></div></div></div></div>`;
+            }).join('') : '<div style="padding:10px; text-align:center; color:#555">Aucune livraison en cours</div>';
+
+            // Rendu des onglets (Tri des missions par capacité).
+            const pendingMissions = state.missions.filter(m => m.status === 'pending');
+            let grouped = {}; pendingMissions.forEach(m => { if(!grouped[m.slots]) grouped[m.slots] = []; grouped[m.slots].push(m); });
+            let caps = Object.keys(grouped).sort((a,b) => parseInt(a) - parseInt(b));
+            if(caps.length > 0 && !grouped[state.activeTab]) state.activeTab = parseInt(caps[0]);
+
+            document.getElementById('tabs-header').innerHTML = caps.map(cap => {
+                return `<button class="tab-btn ${(parseInt(cap)===state.activeTab)?'active':''}" onclick="setActiveTab(${cap})">Cap. ${cap} (${grouped[cap].length})</button>`;
+            }).join('');
+
+            let contentHTML = '';
+            if(caps.length === 0) contentHTML = '<div style="padding:20px; text-align:center; color:#555">Aucune offre. Attendez...</div>';
+            else if (grouped[state.activeTab]) {
+                let sorted = grouped[state.activeTab].sort((a,b) => a.id - b.id);
+                const avail = state.couriers.filter(c => !c.busy && c.vehicleId);
+                const opts = avail.map((c,i) => `<option value="${state.couriers.indexOf(c)}">${c.name}</option>`).join('');
+                contentHTML = sorted.map(m => {
+                    const action = avail.length ? `<div style="display:flex;gap:5px; margin-top:5px"><select id="s_${m.id}" style="background:#333; color:#fff; border:none; padding:5px; border-radius:4px; width:100%">${opts}</select><button class="btn-green" onclick="acceptMission(${m.id}, document.getElementById('s_${m.id}').value)">GO</button></div>` : `<small style="color:var(--accent)">Aucun livreur dispo</small>`;
+                    return `<div class="mission-grid-item"><div style="display:flex; justify-content:space-between"><strong>${m.name}</strong><span class="text-green">${m.reward}€</span></div><div><span class="badge badge-cap">📦 ${m.slots}</span> <span class="badge badge-time">⏱️ ~${m.timeEst}m</span></div>${action}</div>`;
+                }).join('');
+            }
+            document.getElementById('tabs-content').innerHTML = contentHTML;
+
+            // Listes de personnel et véhicules.
+            document.getElementById('couriers-list').innerHTML = state.couriers.map((c, i) => {
+                const v = state.vehicles.find(veh => veh.id === c.vehicleId);
+                return `<div class="card"><div><strong>${c.icon||'👤'} ${c.name}</strong> <span style="color:var(--xp)">Lvl ${c.level}</span><br><small>${v ? v.icon + " " + v.name : '⛔ À pied'}</small></div><button class="btn-blue" onclick="openAssignModal(${i})">🚗</button></div>`;
+            }).join('');
+            document.getElementById('garage-list').innerHTML = state.vehicles.map(v => {
+                return `<div class="card"><div>${v.icon} <strong>${v.name}</strong> <small style="color:#888">${v.desc}</small></div><small>${v.assignedTo ? '✅ Utilisé' : '💤 Libre'}</small></div>`;
+            }).join('');
+            saveGame();
+        }
+
+        function updateClock() {
+            const h = Math.floor(state.time/60); const m = Math.floor(state.time%60);
+            document.getElementById('clock').innerText = `${h<10?'0'+h:h}:${m<10?'0'+m:m}`;
+        }
+
+        // Filtres pour les boutiques.
+        function filterShop(cat, btn) { currentShopFilter = cat; document.querySelectorAll('#modal-shop .filter-btn').forEach(b => b.classList.remove('active')); if(btn) btn.classList.add('active'); renderShop(); }
+        function filterHire(cat, btn) { currentHireFilter = cat; document.querySelectorAll('#modal-hire .filter-btn').forEach(b => b.classList.remove('active')); if(btn) btn.classList.add('active'); renderHire(); }
+        
+        // Rendu des grilles d'achat.
+        function renderShop() {
+            const filtered = currentShopFilter === 'all' ? VEHICLES : VEHICLES.filter(v => v.cat === currentShopFilter);
+            document.getElementById('shop-grid').innerHTML = filtered.map(v => `<div class="shop-item ${v.cat === 'mythic' ? 'mythic-item' : (v.cat==='mil'?'mil-item':'')}" onclick="buyVehicle('${v.id}')"><span class="tag-price">${v.price} €</span><div style="font-size:2em">${v.icon}</div><strong>${v.name}</strong><br><span class="badge badge-cap">📦 ${v.cap}</span> <span class="badge badge-time">🚀 ${v.speed}</span><br><small style="color:#888">${v.desc}</small></div>`).join('');
+        }
+        function renderHire() {
+            const filtered = RECRUITS.filter(r => r.cat === currentHireFilter);
+            document.getElementById('hire-grid').innerHTML = filtered.map(r => `<div class="shop-item ${r.cat === 'legend' ? 'legend-item' : ''}" onclick="recruit('${r.id}')"><span class="tag-price">${r.price} €</span><div style="font-size:2em">${r.icon}</div><strong>${r.name}</strong><br><span class="badge" style="color:#2ed573">x${r.spd} Vit</span> <span class="badge" style="color:#ffd32a">x${r.earn} Gain</span><br><small style="color:#888">${r.desc}</small></div>`).join('');
+        }
+
+        // --- ACTIONS & TRANSACTIONS ---
+        function openLogModal() {
+            document.getElementById('log-content').innerHTML = VERSION_LOG.map(entry => `<div class="log-entry"><div class="log-version">${entry.version} <small style="float:right; color:#888">${entry.date}</small></div><ul class="log-notes" style="list-style-type:none; padding:0; margin:0;">${entry.notes.map(note => `<li>${note}</li>`).join('')}</ul></div>`).join('');
+            document.getElementById('modal-log').style.display = 'flex';
+        }
+        function buySkill(id) { const s = SKILLS_CATALOG.find(x => x.id === id); if(state.money >= s.price) { state.money -= s.price; state.skills[id] = true; closeModal('modal-skills'); notify(`Compétence ${s.name} acquise !`, "success"); updateUI(); } else notify("Pas assez d'argent", "error"); }
+        function buyGarageSlot() { const cost = (state.maxVehicles - 4) * 5000; if(state.money >= cost) { state.money -= cost; state.maxVehicles++; notify(`Garage agrandi ! (+1 Place)`, "success"); updateUI(); } else notify(`Besoin de ${cost}€`, "error"); }
+        function buyVehicle(vId) { if(state.vehicles.length >= state.maxVehicles) return notify("Garage plein !", "error"); const v = VEHICLES.find(x => x.id === vId); if(state.money >= v.price) { state.money -= v.price; state.vehicles.push({ ...v, id: Date.now(), condition: 100, assignedTo: null }); closeModal('modal-shop'); notify(`${v.name} livré.`, "success"); updateUI(); } else notify("Fonds insuffisants", "error"); }
+        function recruit(rId) { const r = RECRUITS.find(x => x.id === rId); if(state.money >= r.price) { state.money -= r.price; state.couriers.push({ id: Date.now(), name: r.name, level: 1, xp: 0, busy: false, vehicleId: null, spd: r.spd, earn: r.earn, icon: r.icon }); closeModal('modal-hire'); notify(`${r.name} recruté !`, "success"); updateUI(); } else notify("Pas assez d'argent", "error"); }
+        function bankAction(type) { if(type === 'loan') { state.money += 5000; state.debt += 5000; notify("Emprunté 5000€", "info"); } if(type === 'repay') { if(state.money >= 1000 && state.debt > 0) { state.money -= 1000; state.debt -= 1000; notify("Remboursé 1000€", "success"); } else notify("Impossible", "error"); } updateUI(); }
+        
+        // Coûts de fonctionnement.
+        function payDailyCosts() { let m = (!state.skills.mechanic) ? state.vehicles.length * 50 : 0; if(state.skills.fuel_eco) m *= 0.7; let i = Math.floor(state.debt * 0.1); const s = state.couriers.length * 50; const total = m + i + s; state.money -= total; notify(`Coûts journaliers: -${Math.floor(total)}€`, "info"); }
+        
+        // Logique d'affectation véhicule <-> livreur.
+        function assignVehicle(vId) { const c = state.couriers.find(x => x.selectingVehicle); const v = state.vehicles.find(x => x.id === vId); if(c.vehicleId) { const old = state.vehicles.find(x => x.id === c.vehicleId); if(old) old.assignedTo = null; } if(v.assignedTo) { const occupier = state.couriers.find(x => x.id === v.assignedTo); if(occupier) occupier.vehicleId = null; } c.vehicleId = v.id; v.assignedTo = c.id; delete c.selectingVehicle; closeModal('modal-assign'); updateUI(); }
+        
+        // Gestion des modales et utilitaires.
+        function openHireModal() { renderHire(); document.getElementById('modal-hire').style.display = 'flex'; }
+        function openSkillsModal() { document.getElementById('skills-grid').innerHTML = SKILLS_CATALOG.map(s => { const owned = state.skills[s.id]; return `<div class="shop-item" ${!owned ? `onclick="buySkill('${s.id}')"` : ''}><span class="tag-price ${owned?'tag-owned':''}">${owned ? 'ACQUIS' : s.price + '€'}</span><div style="font-size:2em">${s.icon}</div><strong>${s.name}</strong><p style="font-size:0.8em; color:#aaa">${s.desc}</p></div>`; }).join(''); document.getElementById('modal-skills').style.display = 'flex'; }
+        function openModal(id) { if(id === 'modal-shop') renderShop(); document.getElementById(id).style.display = 'flex'; }
+        function openAssignModal(idx) { state.couriers.forEach(c => delete c.selectingVehicle); state.couriers[idx].selectingVehicle = true; document.getElementById('assign-grid').innerHTML = state.vehicles.map(v => `<div class="shop-item" onclick="assignVehicle(${v.id})"><div style="font-size:1.5em">${v.icon}</div><strong>${v.name}</strong><br><small>${v.assignedTo?'⚠️ Occupé':'✅ Libre'}</small></div>`).join(''); document.getElementById('modal-assign').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        // Système de notification (Toast).
+        function notify(msg, type="info") { const area = document.getElementById('toast-area'); const t = document.createElement('div'); t.className = 'toast'; t.innerText = msg; if(type==='error') t.style.borderLeftColor = 'var(--accent)'; if(type==='success') t.style.borderLeftColor = 'var(--success)'; area.appendChild(t); setTimeout(() => t.remove(), 3000); }
+        
+        // Persistance.
+        function hardReset() { if(confirm("Reset complet ?")) { localStorage.removeItem(SAVE_KEY); location.reload(); }}
+        function saveGame() { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
+        function loadGame() { try { const d = localStorage.getItem(SAVE_KEY); if(d) state = {...state, ...JSON.parse(d)}; } catch(e){} }
+        
+        // Event Listener pour le bouton Turbo.
+        const t = document.getElementById('turbo-zone');
+        t.onmousedown = () => { state.speed = 10; document.body.style.filter = "saturate(1.2)"; };
+        t.onmouseup = t.onmouseleave = () => { state.speed = 1; document.body.style.filter = "none"; };
+
+    </script>
+</body>
+</html>
